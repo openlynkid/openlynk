@@ -164,3 +164,53 @@ UI invariants (ReUI):
 - `rg` is not installed in this sandbox. The ReUI self-checks in
   `.agents/skills/reui/rules/quality.md` use ripgrep; run them with `grep -nHE` instead.
   A missing `rg` prints nothing, which reads exactly like a clean check.
+
+## OpenLynk domain notes (read before touching creator/store/analytics code)
+
+OpenLynk is a link-in-bio + digital-product storefront built on this starter kit. The
+platform half (auth, orgs, billing, Midtrans) is the template's; the product half lives in
+three modules added on top.
+
+- `src/modules/creator/` — profiles, links, public page assembly, entitlements.
+  `service.ts` (profile + links), `products.ts` (products + assets), `entitlements.ts`
+  (plan → limits), `types.ts` (`PublicProfile`, `PublicLink`, `PublicProduct`).
+- `src/modules/store/` — checkout, free claims, webhook settlement, deliveries, sales.
+- `src/modules/analytics/` — event ingestion (`recordEvent`) and the dashboard summary.
+
+Plan ids and prices are load-bearing. `PRICING_PLANS` in `src/modules/billing/plans.ts`
+and `src/modules/billing/types.ts` are referenced by id from checkout and the webhook, so
+rename the *display* copy only. Free = 5 links / 1 product / no analytics; starter = 50 /
+10 / basic; pro = unlimited / 100 / advanced + custom domain + branding removal.
+
+Entitlements are enforced server-side (`getCreatorEntitlements`, `checkLimit`), never only
+in the UI. A limit rejection is a 402; a validation failure is 400.
+
+Storefront caching is tag-based and the invalidation is easy to forget:
+
+- Public pages use `use cache` + `cacheLife("minutes")` in
+  `src/components/storefront/queries.ts`.
+- Tag names live in `src/lib/storefront-cache.ts`. **Use the helpers there, not string
+  literals** — a tag only one side knows about is a silent cache miss.
+- Every creator/product write, and every sale that moves a product's `salesCount` (free
+  claim, webhook settlement, refund), must call `invalidateStorefront(username)`. The
+  storefront renders "N sold" from that counter, so a sale changes the cached page too.
+- `invalidateStorefront` swallows the "no request scope" invariant error on purpose: a
+  script or test writing to the DB is not an error, and `cacheLife` is the backstop.
+
+Two boundary rules that bit us and will bite again:
+
+- A Server Component cannot pass an `onClick` to an anchor — React refuses to render it
+  and the page 500s. Interactive storefront bits (`TrackedLink`, `ViewTracker`,
+  `ProductViewTracker`, checkout form) are client components so the page itself stays
+  server-rendered and cacheable.
+- The events route (`/api/events/link`) is public, so it verifies a `targetId` belongs to
+  the profile before counting it — for link clicks *and* product views. Anything countable
+  needs the same ownership check.
+
+Drizzle + postgres.js (`prepare: false`): never bind a JS `Date` through a raw `sql`
+template — the driver cannot serialise it on a non-prepared statement and the query throws
+at runtime. Use `gte(column, date)`. Column expressions inside `sql` are fine.
+
+Local dev DB is `openlynk` (`openlynk_dev` was used for the E2E run). `src/server/db/index.ts`
+defaults to `openlynk`, but a shell `DATABASE_URL` overrides it — pass it explicitly when
+you mean a specific database.
