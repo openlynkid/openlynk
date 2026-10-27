@@ -72,15 +72,15 @@ export function BrandLogo({
       {showText && (
         <div className="flex flex-col">
           <div className={cn("flex items-center gap-1.5 font-bold tracking-tight", textSize)}>
-            <span>saas</span>
-            <span className="text-muted-foreground font-normal">/studio</span>
+            <span>open</span>
+            <span className="text-muted-foreground font-normal">lynk</span>
             {showBadge && (
               <Badge
                 variant="outline"
                 size="xs"
                 className="font-mono text-muted-foreground border-border/80"
               >
-                v2.4
+                v1.0
               </Badge>
             )}
           </div>

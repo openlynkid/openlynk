@@ -10,8 +10,8 @@ export function proxy(request: NextRequest) {
 
   const isAuthenticated = Boolean(sessionCookie?.value);
 
-  // Protected routes: /dashboard and all subroutes
-  const isDashboardRoute = pathname.startsWith("/dashboard");
+  // Protected routes: the creator dashboard and the buyer library.
+  const isDashboardRoute = pathname.startsWith("/dashboard") || pathname.startsWith("/library");
 
   // Auth routes: /login and /register
   const isAuthRoute = pathname === "/login" || pathname === "/register";
@@ -33,5 +33,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*", "/library/:path*", "/login", "/register"],
 };

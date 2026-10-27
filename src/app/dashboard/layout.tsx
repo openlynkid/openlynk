@@ -5,14 +5,18 @@ import { useSession, signOut } from "@/lib/auth-client";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  LayoutDashboard,
-  Building2,
+  BarChart3,
   CreditCard,
-  Settings,
-  LogOut,
-  ExternalLink,
-  Menu,
+  LayoutDashboard,
+  Link2,
   Loader2,
+  LogOut,
+  Menu,
+  Palette,
+  Receipt,
+  Settings,
+  ShoppingBag,
+  ExternalLink,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -37,9 +41,22 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Organizations", href: "/dashboard/organizations", icon: Building2 },
+  { title: "Links", href: "/dashboard/links", icon: Link2 },
+  { title: "Products", href: "/dashboard/products", icon: ShoppingBag },
+  { title: "Appearance", href: "/dashboard/appearance", icon: Palette },
+  { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { title: "Orders", href: "/dashboard/orders", icon: Receipt },
   { title: "Billing & Plans", href: "/dashboard/billing", icon: CreditCard },
   { title: "Profile & Settings", href: "/dashboard/settings", icon: Settings },
+];
+
+/** The handful of destinations that fit in the mobile bottom bar. */
+const MOBILE_NAV_HREFS = [
+  "/dashboard",
+  "/dashboard/links",
+  "/dashboard/products",
+  "/dashboard/analytics",
+  "/dashboard/billing",
 ];
 
 export default function DashboardLayout({
@@ -294,9 +311,10 @@ export default function DashboardLayout({
           )}
         </main>
 
-        {/* Mobile Fixed Bottom Navigation Bar (Instant 1-tap switching) */}
+        {/* Mobile Fixed Bottom Navigation Bar. Only the primary destinations fit, so the
+            rest live in the sheet above; a scrolling bottom bar is not discoverable. */}
         <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-14 bg-card/90 backdrop-blur-md border-t border-border/80 flex items-center justify-around px-2">
-          {navItems.map((item) => {
+          {navItems.filter((item) => MOBILE_NAV_HREFS.includes(item.href)).map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (

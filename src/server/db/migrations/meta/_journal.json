@@ -29,6 +29,13 @@
       "when": 1792962714206,
       "tag": "0003_slimy_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793118769487,
+      "tag": "0004_magical_mysterio",
+      "breakpoints": true
     }
   ]
 }

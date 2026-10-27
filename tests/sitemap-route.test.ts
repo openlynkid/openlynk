@@ -7,7 +7,12 @@ import { fileURLToPath } from "node:url";
 
 import sitemap from "../src/app/sitemap.ts";
 import robots from "../src/app/robots.ts";
-import { PUBLIC_ROUTES, PRIVATE_ROUTES, getSiteOrigin } from "../src/lib/seo.ts";
+import {
+  PUBLIC_ROUTES,
+  PRIVATE_ROUTES,
+  INDEXABLE_DYNAMIC_ROUTES,
+  getSiteOrigin,
+} from "../src/lib/seo.ts";
 
 /**
  * `src/app/sitemap.ts` has no other guard: delete it and the `Sitemap:` line in
@@ -71,17 +76,44 @@ describe("sitemap.xml route (src/app/sitemap.ts)", () => {
     }
   });
 
-  it("classifies every page in src/app as public or private", () => {
-    // The guard that makes this falsifiable: a new page.tsx that is in neither list fails
-    // here, forcing whoever added it to decide whether it belongs in the sitemap.
+  it("classifies every page in src/app as public, indexable-dynamic or private", () => {
+    // The guard that makes this falsifiable: a new page.tsx that is in none of the lists
+    // fails here, forcing whoever added it to decide whether it belongs in the sitemap.
     for (const route of pageRoutes()) {
       const isPublic = (PUBLIC_ROUTES as readonly string[]).includes(route);
       const isPrivate = (PRIVATE_ROUTES as readonly string[]).some(
         (prefix) => route === prefix || route.startsWith(`${prefix}/`)
       );
+      const isIndexableDynamic = (INDEXABLE_DYNAMIC_ROUTES as readonly string[]).some(
+        (prefix) => route === prefix || route.startsWith(`${prefix}/`)
+      );
       assert.ok(
-        isPublic || isPrivate,
-        `${route} has a page.tsx but is classified as neither public nor private in src/lib/seo.ts`
+        isPublic || isPrivate || isIndexableDynamic,
+        `${route} has a page.tsx but is classified as none of public, indexable-dynamic or private in src/lib/seo.ts`
+      );
+    }
+  });
+
+  it("keeps indexable dynamic routes out of the sitemap and out of the disallow list", () => {
+    // `/u/<handle>` cannot be enumerated at build time, but must stay crawlable. If one
+    // ever lands in PUBLIC_ROUTES the sitemap would list a route with no page.tsx, and
+    // if one lands in PRIVATE_ROUTES every creator page would be de-indexed.
+    const rules = robots().rules;
+    const rule = Array.isArray(rules) ? rules[0] : rules;
+    const disallow: string[] = Array.isArray(rule.disallow)
+      ? rule.disallow
+      : rule.disallow
+        ? [rule.disallow]
+        : [];
+
+    for (const prefix of INDEXABLE_DYNAMIC_ROUTES) {
+      assert.ok(
+        !(PUBLIC_ROUTES as readonly string[]).includes(prefix),
+        `${prefix} is indexable-dynamic and must not be in PUBLIC_ROUTES`
+      );
+      assert.ok(
+        !disallow.some((entry) => entry === prefix || entry.startsWith(`${prefix}/`)),
+        `${prefix} is indexable-dynamic but robots.txt disallows it`
       );
     }
   });

@@ -13,7 +13,7 @@ export interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
-  tag = "saas/studio",
+  tag = "openlynk",
   category = "App Router • Next.js 16",
   className,
   children,

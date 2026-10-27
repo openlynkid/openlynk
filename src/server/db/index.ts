@@ -6,7 +6,7 @@ declare global {
   var __dbClient: postgres.Sql | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/saas_starterkit";
+const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/openlynk";
 
 // Use a singleton pattern for the postgres connection to prevent connection exhaustion in serverless / hot-reload environments
 const client =

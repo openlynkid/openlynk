@@ -4,7 +4,7 @@ import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
   title: "Create Account",
-  description: "Sign up and create your account on SaaS Starter Kit.",
+  description: "Create your free OpenLynk account and start sharing your links.",
 };
 
 export default function RegisterPage() {

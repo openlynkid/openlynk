@@ -207,7 +207,7 @@ export function RegisterForm() {
 
       {/* Footer */}
       <footer className="py-4 text-center text-xs text-muted-foreground border-t border-border/70 font-mono">
-        saas/studio v2.4 &bull; Built with Better Auth &amp; Drizzle ORM
+        OpenLynk v1.0 &bull; Built with Better Auth &amp; Drizzle ORM
       </footer>
     </div>
   );

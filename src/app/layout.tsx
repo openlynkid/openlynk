@@ -18,11 +18,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "SaaS Starter Kit — Production-Ready Next.js & Better Auth Template",
-    template: "%s | SaaS Starter Kit",
+    default: "OpenLynk — Link-in-Bio & Digital Product Store for Creators",
+    template: "%s | OpenLynk",
   },
   description:
-    "Modular monolith SaaS template repository featuring Next.js App Router, Better Auth, Drizzle ORM, PostgreSQL, and Midtrans payment gateway.",
+    "One page for everything you create. Share every link, sell digital products, and track your audience with OpenLynk.",
 };
 
 export default function RootLayout({
