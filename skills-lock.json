@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "senior-pm": {
+      "source": "alvindean/soniq",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/pm-skills/senior-pm/SKILL.md",
+      "computedHash": "93d618154831acd939fa177fdcae829047155a54fc062db2735eacaf7fc60309"
+    }
+  }
+}
