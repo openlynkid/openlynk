@@ -407,6 +407,22 @@ an old one to hide a change.
 - `.netlify/` is a build output directory and is now gitignored. A local `netlify build`
   writes ~78 MB there; before it was ignored, it turned a green lint into 899 errors
   because ESLint walked the bundled output.
+- **Production deploys fail in a *third*, different way, and it is not a code defect.**
+  Every deploy-preview failure reported `plugin_state: failed_build` (a build ran and
+  failed). The production deploys from `main` instead report `skipped: true` with
+  `plugin_state: none` and `deploy_time: null`, completing in ~0.1 s — Netlify records a
+  deploy but never runs a build. Telling the two apart matters: `failed_build` is ours to
+  fix, `skipped`/`none` is a Netlify-side setting. The site object reports
+  `build_settings: {}` and `repo_branch: null`, and `published_deploy` has always been
+  `null` (0 of 15 deploys ever published), so production has never been live. Diagnosing
+  it further needs the site owner's Netlify access — deploy logs and env vars are
+  unreadable anonymously (`api.netlify.com` returns 401, `NETLIFY_AUTH_TOKEN` is unset).
+- **How to read a deploy without Netlify auth.** The public endpoint
+  `https://api.netlify.com/api/v1/sites/<site>/deploys` works unauthenticated and carries
+  `state`, `skipped`, `plugin_state`, `deploy_time`, `context` and `commit_ref` — enough
+  to distinguish "build failed" from "no build ran" and to correlate a deploy with a
+  commit. `/deploys/<id>/log` does not (404 without a token), which is why the failing
+  *step* has to be inferred from `plugin_state` rather than read directly.
 
 ## Technical notes that are easy to forget
 
