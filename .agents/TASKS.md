@@ -6,7 +6,30 @@ The office's working state. `coordinator` owns this file; under autopilot,
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in brackets.
 
-## Sekarang (Current)
+## Serah-terima: lanjutkan deploy Netlify (percakapan baru)
+
+Owner sudah mendaftarkan secret `NETLIFY_AUTH_TOKEN` (Settings → Secrets). Secret hanya
+sampai ke percakapan yang **dimulai setelah** disimpan, jadi percakapan yang membuat catatan
+ini tidak melihatnya — mulai percakapan baru, lalu jalankan langkah berikut.
+
+1. Pastikan token terlihat: `curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" https://api.netlify.com/api/v1/user` → harus `200` (bukan `401`).
+2. Baca log build produksi yang gagal — ini yang belum pernah terbaca:
+   `curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" https://api.netlify.com/api/v1/deploys/<id>/log`
+   Mulai dari deploy produksi terbaru (daftar: `/api/v1/sites/f254fc03-bee3-4bd2-8e13-573e57aa5add/deploys`).
+   Cari penyebab `skipped: true` / `plugin_state: none`: build dihentikan ("Stop builds"),
+   build minutes habis, atau production branch salah. Ketiganya setting Netlify, bukan kode.
+3. Isi environment variables di site (`POST /api/v1/accounts/<slug>/env?site_id=<id>`):
+   `BETTER_AUTH_SECRET` (≥32), `BETTER_AUTH_URL` dan `NEXT_PUBLIC_APP_URL`
+   = `https://openlynk.netlify.app`, `CRON_SECRET` (≥32), `MIDTRANS_SERVER_KEY`,
+   `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION` +
+   `NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION` (sama). **`DATABASE_URL` tidak perlu** — Netlify
+   Database menyediakan `NETLIFY_DB_URL`.
+4. Trigger deploy produksi (`POST /api/v1/sites/<id>/builds` atau tombol "Clear cache and
+   deploy site"), lalu verifikasi `https://openlynk.netlify.app` mengembalikan 200, bukan 404.
+5. **Jangan tempel token ke chat.** Pakai dari environment variable saja.
+
+Jangan ulangi eksperimen isolasi `exp-*` — kesimpulannya sudah final di D-16 dan tidak perlu
+dibuktikan lagi.
 
 - `[~]` **[devops]** Deploy OpenLynk to Netlify. Two repo-side defects fixed and merged
   (PR #2): no `publish` directory was configured, and `@netlify/database` was absent so
