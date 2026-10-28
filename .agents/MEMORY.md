@@ -412,11 +412,16 @@ an old one to hide a change.
   failed). The production deploys from `main` instead report `skipped: true` with
   `plugin_state: none` and `deploy_time: null`, completing in ~0.1 s — Netlify records a
   deploy but never runs a build. Telling the two apart matters: `failed_build` is ours to
-  fix, `skipped`/`none` is a Netlify-side setting. The site object reports
-  `build_settings: {}` and `repo_branch: null`, and `published_deploy` has always been
+  fix, `skipped`/`none` is a Netlify-side setting. `published_deploy` has always been
   `null` (0 of 15 deploys ever published), so production has never been live. Diagnosing
   it further needs the site owner's Netlify access — deploy logs and env vars are
   unreadable anonymously (`api.netlify.com` returns 401, `NETLIFY_AUTH_TOKEN` is unset).
+  Check there, in order: whether builds are stopped for the site, build minutes/billing,
+  and the production branch setting.
+- **Do not read `build_settings: {}` or `repo_branch: null` as evidence.** Those fields are
+  stripped from the *anonymous* site object: `vitejs.netlify.app`, a site that is live and
+  has a real `published_deploy`, returns exactly the same values. The trustworthy signal
+  in that payload is `published_deploy` (`null` here, populated there).
 - **How to read a deploy without Netlify auth.** The public endpoint
   `https://api.netlify.com/api/v1/sites/<site>/deploys` works unauthenticated and carries
   `state`, `skipped`, `plugin_state`, `deploy_time`, `context` and `commit_ref` — enough

@@ -12,14 +12,14 @@ Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in br
   (PR #2): no `publish` directory was configured, and `@netlify/database` was absent so
   the database was never provisioned. Proof: deploy previews went from `error` to `ready`
   (see D-16 for the controlled differential). **Still blocked on the production context**:
-  both production deploys from `main` (03:23 and 04:46) came back `skipped: true` with
+  both production deploys from `main` (03:23, 04:46, 04:58) came back `skipped: true` with
   `plugin_state: none` in ~0.1 s, i.e. no build was attempted, whereas the earlier direct
   commit `a801715` *did* attempt one. No production deploy has ever published
-  (`published_deploy: null`, 0 of 15 deploys). The site object also reports
-  `build_settings: {}` and `repo_branch: null`. This looks like a Netlify-side production
-  build/connection setting, which needs the site owner's Netlify access; deploy logs and
-  env vars are unreadable from here (`api.netlify.com` returns 401, `NETLIFY_AUTH_TOKEN`
-  unset).
+  (`published_deploy: null`, 0 of 15 deploys). The remaining blocker is therefore a
+  Netlify-side production build setting, which needs the site owner's Netlify access;
+  deploy logs and env vars are unreadable from here (`api.netlify.com` returns 401,
+  `NETLIFY_AUTH_TOKEN` unset). Worth checking in the Netlify UI: whether builds are
+  stopped, build minutes/billing, and the production branch.
 
 - `[x]` **[devops + docs]** Register the nightly autopilot automation (Step 9 of the
   pipeline in D-6). Registered as `aa313395-f5e0-40f2-be98-960ada83908e` on the three
