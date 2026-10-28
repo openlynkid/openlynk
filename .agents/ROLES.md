@@ -23,7 +23,7 @@ is self-contained; stay in the mode when the task needs the whole conversation's
 | `autopilot` | a bounded work item run without per-step stops | — (delegates, never edits) |
 | `planning` | requirements, acceptance criteria, scope cuts | — |
 | `architecture` | module boundaries, data flow, ADRs in `MEMORY.md` | — |
-| `data` | `src/server/db/schema/**`, `src/server/db/migrations/**`, `drizzle.config.ts` | `database-migration-engineer` |
+| `data` | `src/server/db/schema/**`, `netlify/database/migrations/**`, `drizzle.config.ts` | `database-migration-engineer` |
 | `backend` | `src/app/api/**`, `src/modules/**`, `src/server/auth/**` | `backend-developer` |
 | `frontend` | `src/app/**`, `src/components/**` (ReUI) | `frontend-developer` |
 | `security` | auth, webhook signatures, cron auth, deletion guard | — |

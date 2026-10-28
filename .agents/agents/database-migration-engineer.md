@@ -42,7 +42,7 @@ additive.
   `member`, `invitation`). Renaming these breaks authentication.
 - Commands: `pnpm db:generate` (create SQL from schema), `pnpm db:migrate` (apply),
   `pnpm db:push` (dev-only direct sync), `pnpm db:studio`.
-- Migrations live in `src/server/db/migrations/` with snapshots in `migrations/meta/`.
+- Migrations live in `netlify/database/migrations/` with snapshots in `migrations/meta/`.
   Never hand-edit a generated snapshot; regenerate it.
 - The integration test `tests/integration/postgres-webhook-concurrency.test.ts` applies
   migrations to a disposable database and depends on the current constraints — notably
@@ -112,7 +112,7 @@ Return exactly this structure:
 [One sentence: the schema change and why.]
 
 ## Migration
-- File: `src/server/db/migrations/[name].sql`
+- File: `netlify/database/migrations/[name].sql`
 - Type: [additive / destructive]
 - Forward: [what the SQL does]
 - Reverse: [how to undo it]

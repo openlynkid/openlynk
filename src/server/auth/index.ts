@@ -23,6 +23,13 @@ const getBetterAuthBaseURL = () => {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
+  // Netlify: DEPLOY_PRIME_URL is the deploy preview / branch URL, URL the production one.
+  if (process.env.DEPLOY_PRIME_URL) {
+    return process.env.DEPLOY_PRIME_URL;
+  }
+  if (process.env.URL) {
+    return process.env.URL;
+  }
   return env.BETTER_AUTH_URL;
 };
 
@@ -49,6 +56,8 @@ export const auth = betterAuth({
     process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
       : undefined,
+    process.env.DEPLOY_PRIME_URL,
+    process.env.URL,
   ].filter(Boolean) as string[],
   emailAndPassword: {
     enabled: true,

@@ -13,7 +13,7 @@ conversation after changing or adding a file here.
 | `delivery-lead` | One work item end to end: criteria, sequence, gate, report | production source (it delegates) |
 | `backend-developer` | `src/app/api/**`, `src/modules/**`, `src/server/auth/**` | db schema/migrations |
 | `frontend-developer` | `src/app/**`, `src/components/**` (ReUI design system) | `src/components/reui/**` internals |
-| `database-migration-engineer` | `src/server/db/schema/**`, `src/server/db/migrations/**`, `drizzle.config.ts` | service/route logic |
+| `database-migration-engineer` | `src/server/db/schema/**`, `netlify/database/migrations/**`, `drizzle.config.ts` | service/route logic |
 | `code-reviewer` | Read-only review of any change | writes anything |
 | `qa-test-engineer` | `tests/**` | production source (except minimal bug fixes) |
 
