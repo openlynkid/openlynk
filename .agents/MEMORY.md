@@ -358,6 +358,56 @@ an old one to hide a change.
   table and `.next/server/app/sitemap.xml.body` holds the XML — read the `.body` file to
   confirm the rendered output. Same rule as D-14.
 
+### D-16: Netlify needs a committed `netlify.toml` (with `publish`), and `@netlify/database` to have a database
+- Date: 2026-10-28
+- Mode: devops
+- Decision: commit a `netlify.toml` carrying the build settings, and keep
+  `@netlify/database` in `dependencies`. They fix two different problems.
+- **Two independent defects, isolated by experiment.** Both were masked by the same
+  symptom (every git-triggered deploy `error`), so they were separated with throwaway
+  branches and a deploy preview each:
+
+  | Branch | `netlify.toml` | Result |
+  | :--- | :--- | :--- |
+  | control | none | `error`, `deploy_time: null` |
+  | `exp-cmd-only` | `command` only | `error` |
+  | `exp-pub-only` | `publish = ".next"` only | `ready` |
+  | full fix | `command` + `publish` | `ready` |
+
+  The site's dashboard config had `build_settings: {}` — no publish directory configured.
+  **`publish` is the setting that actually unblocked deploys**, not the database package:
+  the `command`-only branch still failed, so `command` is not the load-bearing part. Do not
+  "simplify" the file by dropping `publish`.
+- **The mechanism is not established, only the correlation.** Do not write a cause into
+  this entry that the evidence does not support. Two tempting explanations are both
+  contradicted: (a) `netlify build --offline` with no config file defaults `publish` to the
+  repository root (`publishOrigin: default`), so publish is never *undefined* locally; and
+  (b) the failed production deploy `6ae16aa2` carries `skipped: true` with
+  `plugin_state: none`, meaning no build ran for it at all — it was not a build that failed
+  mid-way. The differential above is reproducible and is the honest justification: state
+  the observation, not a theory.
+- **`@netlify/database` is a separate, still-required fix.** It does not affect whether
+  the build succeeds; it decides whether the app has a database. Netlify gates provisioning
+  on that package name being in `dependencies`/`devDependencies` (`hasDBPackage`,
+  `condition` in `@netlify/build/lib/plugins_core/db_setup/index.js`). It was previously
+  only an *optional peer dependency of `drizzle-orm`*, which does not satisfy the gate, so
+  `NETLIFY_DB_URL` was never injected and `src/server/db/index.ts` fell back to localhost.
+  A deploy can therefore look `ready` while the app cannot reach its database — the deploy
+  status alone does not prove the app works.
+- **How to reproduce the diagnosis.** `netlify build --offline` runs the real pipeline
+  locally and needs `pnpm` on `PATH`. It prints the resolved config, so it shows the
+  effective `command`/`publish` and their `commandOrigin`/`publishOrigin` (`ui` vs
+  `config`). With the package absent the log has *zero* database lines; with it, a
+  `Netlify Database setup` step appears listing the migrations. That step then fails
+  locally with `Cannot read properties of undefined (reading 'createSiteDatabase')` —
+  expected offline, no authenticated API client. The step's *presence* is the signal, its
+  offline failure is not.
+- Do not pin `@netlify/plugin-nextjs`. Netlify keeps the adapter current with each Next.js
+  release, and pinning opts out of that (see the Next.js runtime docs).
+- `.netlify/` is a build output directory and is now gitignored. A local `netlify build`
+  writes ~78 MB there; before it was ignored, it turned a green lint into 899 errors
+  because ESLint walked the bundled output.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

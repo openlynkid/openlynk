@@ -1,0 +1,18 @@
+# Netlify build configuration, kept in version control so it cannot drift from the
+# settings in the project UI.
+#
+# `publish` is load-bearing. With no `netlify.toml` at all, every git-triggered deploy
+# failed (`plugin_state: failed_build`); setting `publish = ".next"` made them succeed.
+# Verified by controlled differential: control (no file) and `command`-only both failed,
+# `publish`-only succeeded. The exact internal reason is not established, so do not
+# "simplify" this by dropping `publish`.
+#
+# The Next.js adapter (`@netlify/plugin-nextjs`) is installed automatically and must not
+# be pinned: Netlify keeps it current with each Next.js release.
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+# Matches CI and satisfies `@netlify/database`'s `>=22.12.0` engine requirement.
+[build.environment]
+  NODE_VERSION = "22"
