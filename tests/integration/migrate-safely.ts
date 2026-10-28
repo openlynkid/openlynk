@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import * as schema from "../../src/server/db/schema/index.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_FOLDER = path.resolve(__dirname, "../../src/server/db/migrations");
+const MIGRATIONS_FOLDER = path.resolve(__dirname, "../../netlify/database/migrations");
 
 // Arbitrary, integration-only. Every run of these suites against the same database
 // serializes on this key.

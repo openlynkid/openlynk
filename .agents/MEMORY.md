@@ -374,7 +374,7 @@ an old one to hide a change.
 - `pnpm build` needs `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `MIDTRANS_SERVER_KEY`,
   `BETTER_AUTH_SECRET`, and `DATABASE_URL` present, or the build fails.
 - Migrations are **not** applied by `pnpm build`. Run `pnpm db:migrate` as a release step;
-  migrations are additive and tracked in `src/server/db/migrations/meta`.
+  migrations are additive and tracked in `netlify/database/migrations/meta`.
 - `pnpm db:push` is for local prototyping only — it skips migration history and drifts.
 - **Vercel rejects deploys whose commit author is not a Vercel team member** ("Git author
   must have access to the project"). Commits authored as `openhands <openhands@all-hands.dev>`

@@ -6,7 +6,12 @@ declare global {
   var __dbClient: postgres.Sql | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/openlynk";
+// On Netlify the managed database injects NETLIFY_DB_URL; an explicit DATABASE_URL wins so a
+// shell or CI can still point at a specific database.
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.NETLIFY_DB_URL ||
+  "postgresql://postgres:postgres@localhost:5432/openlynk";
 
 // Use a singleton pattern for the postgres connection to prevent connection exhaustion in serverless / hot-reload environments
 const client =

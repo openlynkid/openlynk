@@ -39,6 +39,13 @@ export const GATEWAY_FLAG_KEYS = ["MIDTRANS_IS_PRODUCTION", "NEXT_PUBLIC_MIDTRAN
 /** Env vars `src/` reads that are deliberately not part of the deploy contract. */
 export const EXCLUDED_KEYS = [
   "NODE_ENV",
+  // Injected by Netlify: the managed database URL, the build flag, and the deploy URLs.
+  "NETLIFY_DB_URL",
+  // Set by Next.js itself; `src/env.ts` only relaxes validation during `next build`.
+  "NEXT_PHASE",
+  "NETLIFY",
+  "URL",
+  "DEPLOY_PRIME_URL",
   "BETTER_AUTH_URL",
   "NEXT_PUBLIC_APP_URL",
   "VERCEL_URL",
@@ -81,6 +88,10 @@ export function checkDeployEnv(env = process.env) {
   for (const key of REQUIRED_KEYS) {
     const { check, hint } = validators[key];
     const value = env[key];
+    // Netlify Database supplies the URL itself, so a Netlify deploy needs no DATABASE_URL.
+    if (key === "DATABASE_URL" && !isNonEmpty(value) && (isNonEmpty(env.NETLIFY_DB_URL) || env.NETLIFY === "true")) {
+      continue;
+    }
     if (!isNonEmpty(value)) {
       problems.push(`${key} is required but not set`);
     } else if (!check(value)) {

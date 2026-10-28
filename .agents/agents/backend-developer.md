@@ -76,7 +76,7 @@ guard, stop and report it as aborted — do not proceed and do not ask.
   derive amounts from `getPlanById(planId)`, and never accept an amount from the request.
 - **Never log or return secrets** (server key, session tokens) or raw database errors.
   Map unexpected failures to a generic 500 message.
-- **Do not edit** `src/server/db/schema/**`, `src/server/db/migrations/**`, or
+- **Do not edit** `src/server/db/schema/**`, `netlify/database/migrations/**`, or
   `drizzle.config.ts`. If a schema change is needed, say so and stop.
 
 ## Edge cases to handle explicitly

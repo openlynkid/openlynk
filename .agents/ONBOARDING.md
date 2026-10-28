@@ -110,7 +110,7 @@ registered copy.
 | :--- | :--- |
 | a page or route | `src/app/**` (`dashboard/{billing,organizations,settings}`) |
 | domain logic | `src/modules/**` (`billing`, `account`, `organization`) |
-| DB schema / migrations | `src/server/db/schema/**`, `src/server/db/migrations/**` |
+| DB schema / migrations | `src/server/db/schema/**`, `netlify/database/migrations/**` |
 | auth config | `src/server/auth/**` |
 | API routes | `src/app/api/**` |
 | UI primitives | `src/components/ui` (shadcn), `src/components/reui` (ReUI — vendor) |
