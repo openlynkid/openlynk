@@ -478,6 +478,44 @@ are sandbox placeholders. Checkout and the webhook will not settle a real paymen
 the owner replaces them with a matching sandbox pair (both must match or every webhook
 test fails with `WebhookValidationError: Invalid signature`).
 
+### D-18: The bento studio stores a footprint per tile, and the renderer's class map must stay literal
+
+The studio is a grid builder, not a second content model: a tile *is* a `creator_link`
+row, and arranging it adds one thing — a `layout` jsonb column
+(`{w, h}`, default `'{}'`) on `creator_link`. No new table, so every existing row keeps
+working: `{}` resolves through `resolveTileLayout` to a full-width bar, which is exactly
+how the page rendered before the studio existed.
+
+**The resolver is the only place a bad value is stopped.** `resolveTileLayout` clamps
+`w` to `BENTO_GRID_COLUMNS` (4) and `h` to `BENTO_MAX_ROWS` (3), rounds fractions, and
+falls back to the default when a span is missing or not a number. It is used on the
+write path (`createLink`, `updateLink`, `saveStudioLayout`) *and* on the read path
+(`getPublicProfile`), so a row edited directly in the database still renders.
+
+**Tailwind will silently eat a computed span class.** `col-span-${w}` typechecks, lints
+and builds, then every tile collapses to one column in production because the class never
+appears in the source for Tailwind to see. `src/components/storefront/bento.ts` therefore
+holds `COL_SPAN` / `ROW_SPAN` as static literal maps, and
+`tests/bento-layout.test.ts` asserts each literal is present and that no interpolated
+form exists. Keep it a map; do not "simplify" it into a template string.
+
+**Saving is one whole-arrangement write, not a per-tile PATCH.** `saveStudioLayout`
+applies order + footprint + visibility in one transaction, because a half-applied drag is
+a page the creator never chose. Ids the caller does not own match no row (the ownership
+check is in the `WHERE`, the same pattern as `reorderLinks`), and tiles omitted from the
+payload keep their relative order after the listed ones, so a partial payload cannot drop
+a tile. It calls `invalidateStorefront` — a resize changes the cached public page.
+
+**Ordering is the `position` column, so the studio and the Links page share one order.**
+There is no separate bento ordering; rearranging in either surface moves the same rows.
+
+**Verification that matters.** No DOM test runner is installed (no jsdom, no
+testing-library), so the builder's interaction is verified by hand against a real
+database, not in CI. The unit tests cover the pure logic (resolver, presets, validation,
+the class map). Before shipping a change here, run the studio in a browser: select a
+tile, apply a size preset, Save, and confirm both the `creator_link.layout` values and
+the rendered `col-span-*` / `row-span-*` classes on `/u/<handle>` changed.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

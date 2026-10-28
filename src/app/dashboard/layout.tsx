@@ -8,6 +8,7 @@ import {
   BarChart3,
   CreditCard,
   LayoutDashboard,
+  LayoutGrid,
   Link2,
   Loader2,
   LogOut,
@@ -41,6 +42,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Bento Studio", href: "/dashboard/studio", icon: LayoutGrid },
   { title: "Links", href: "/dashboard/links", icon: Link2 },
   { title: "Products", href: "/dashboard/products", icon: ShoppingBag },
   { title: "Appearance", href: "/dashboard/appearance", icon: Palette },

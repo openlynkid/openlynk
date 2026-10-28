@@ -54,6 +54,16 @@ dibuktikan lagi.
 
 ## Backlog
 
+- `[x]` **[frontend + backend + qa]** Bento Studio: a grid builder where a creator
+  arranges their page as tiles. One `layout` jsonb column on `creator_link` (default
+  `'{}'`) rather than a new table, so every existing row still renders full-width through
+  `resolveTileLayout`. Delivered: `/dashboard/studio` (canvas + inspector, drag and
+  keyboard reorder, size presets, show/hide), `GET`/`PUT /api/creator/studio`,
+  `creatorService.saveStudioLayout` (order + footprint + visibility in one transaction,
+  invalidates the storefront cache), and a bento renderer for the public page. Guarded by
+  `tests/bento-layout.test.ts` — including a literal-class assertion, because
+  `col-span-${w}` would build and then collapse every tile in production. See D-18.
+
 - `[x]` **[backend + qa]** Add `src/app/sitemap.ts` so the `Sitemap:` line in `robots.txt`
   resolves. Scope decided: only `/` is public (`/login` and `/register` are `Disallow`ed
   by robots, so listing them would contradict it), and `lastModified` is omitted rather

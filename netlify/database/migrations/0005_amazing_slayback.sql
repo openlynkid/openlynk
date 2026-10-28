@@ -1,0 +1,1 @@
+ALTER TABLE "creator_link" ADD COLUMN "layout" jsonb DEFAULT '{}'::jsonb NOT NULL;

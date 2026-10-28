@@ -4,6 +4,7 @@ import { Badge } from "@/components/reui/badge";
 import { ViewTracker } from "@/components/storefront/view-tracker";
 import { TrackedLink } from "@/components/storefront/tracked-link";
 import { getCachedProfile } from "@/components/storefront/queries";
+import { BENTO_GRID_CLASS, tileSpanClass } from "@/components/storefront/bento";
 import {
   accentStyleForTheme,
   buttonClassForTheme,
@@ -12,6 +13,60 @@ import {
   hairlineStyleForTheme,
 } from "@/components/storefront/theme";
 import { ArrowRight, ExternalLink, FileDown, Link2 } from "lucide-react";
+import type { PublicLink } from "@/modules/creator/types";
+
+/** A text tile: a paragraph in the flow, styled by the theme rather than a card. */
+function TextTile({ link }: { link: PublicLink }) {
+  return (
+    <div className="flex flex-col justify-center gap-1 p-1">
+      {link.title && <p className="text-sm font-semibold tracking-tight">{link.title}</p>}
+      {link.description && (
+        <p className="text-xs leading-relaxed opacity-75">{link.description}</p>
+      )}
+    </div>
+  );
+}
+
+/** An image tile: a cover that fills its footprint, optionally clickable. */
+function ImageTile({
+  link,
+  username,
+}: {
+  link: PublicLink;
+  username: string;
+}) {
+  const image = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={link.url ?? ""}
+      alt={link.title || ""}
+      className="size-full object-cover"
+    />
+  );
+
+  return (
+    <div className="relative size-full overflow-hidden rounded-lg">
+      {link.url ? (
+        <TrackedLink
+          username={username}
+          linkId={link.id}
+          href={link.url}
+          className="block size-full transition-opacity hover:opacity-90"
+        >
+          {image}
+        </TrackedLink>
+      ) : (
+        image
+      )}
+      {link.title && (
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 text-xs font-medium text-white">
+          {link.title}
+        </span>
+      )}
+    </div>
+  );
+}
+
 
 /**
  * The profile body, split out of the page so the page itself can stay synchronous.
@@ -67,47 +122,72 @@ export async function StorefrontView({ username }: { username: string }) {
         </header>
 
         {profile.links.length > 0 && (
-          <nav className="flex flex-col gap-3">
+          <nav className={BENTO_GRID_CLASS}>
             {profile.links.map((link) => {
+              // Headers and dividers are page furniture rather than tiles: they always
+              // take the full width so they read as a break in the flow, whatever
+              // footprint happens to be stored on them.
               if (link.type === "divider") {
-                return <hr key={link.id} className="my-1 border-t opacity-20" />;
+                return (
+                  <hr
+                    key={link.id}
+                    className="col-span-4 my-1 border-t opacity-20"
+                  />
+                );
               }
 
               if (link.type === "header") {
                 return (
                   <h2
                     key={link.id}
-                    className="pt-2 text-xs font-semibold uppercase tracking-widest opacity-60"
+                    className="col-span-4 pt-2 text-xs font-semibold uppercase tracking-widest opacity-60"
                   >
                     {link.title}
                   </h2>
                 );
               }
 
+              if (link.type === "text") {
+                return (
+                  <div key={link.id} className={tileSpanClass(link.layout)}>
+                    <TextTile link={link} />
+                  </div>
+                );
+              }
+
+              if (link.type === "image") {
+                return (
+                  <div key={link.id} className={tileSpanClass(link.layout)}>
+                    <ImageTile link={link} username={profile.username} />
+                  </div>
+                );
+              }
+
               return (
-                <TrackedLink
-                  key={link.id}
-                  username={profile.username}
-                  linkId={link.id}
-                  href={link.url ?? "#"}
-                  className={`${buttonClass} justify-between shadow-xs hover:opacity-90`}
-                  style={accentStyle}
-                >
-                  <span className="flex items-center gap-2.5 min-w-0">
-                    {link.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={link.thumbnailUrl}
-                        alt=""
-                        className="size-6 rounded object-cover shrink-0"
-                      />
-                    ) : (
-                      <Link2 className="size-4 shrink-0" />
-                    )}
-                    <span className="truncate">{link.title}</span>
-                  </span>
-                  <ExternalLink className="size-3.5 shrink-0 opacity-70" />
-                </TrackedLink>
+                <div key={link.id} className={`${tileSpanClass(link.layout)} min-w-0`}>
+                  <TrackedLink
+                    username={profile.username}
+                    linkId={link.id}
+                    href={link.url ?? "#"}
+                    className={`${buttonClass} h-full justify-between shadow-xs hover:opacity-90`}
+                    style={accentStyle}
+                  >
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      {link.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={link.thumbnailUrl}
+                          alt=""
+                          className="size-6 rounded object-cover shrink-0"
+                        />
+                      ) : (
+                        <Link2 className="size-4 shrink-0" />
+                      )}
+                      <span className="truncate">{link.title}</span>
+                    </span>
+                    <ExternalLink className="size-3.5 shrink-0 opacity-70" />
+                  </TrackedLink>
+                </div>
               );
             })}
           </nav>

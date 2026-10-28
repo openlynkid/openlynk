@@ -61,6 +61,18 @@ describe("Auth Route Protection (Proxy & Session Guards)", () => {
       assert.equal(targetUrl.searchParams.get("redirect"), "/dashboard/settings");
     });
 
+    it("should redirect unauthenticated access on /dashboard/studio to /login with redirect param", () => {
+      const req = createMockRequest("/dashboard/studio");
+      const res = proxy(req);
+
+      assert.equal(res.status, 307);
+      const location = res.headers.get("location");
+      assert.ok(location);
+      const targetUrl = new URL(location);
+      assert.equal(targetUrl.pathname, "/login");
+      assert.equal(targetUrl.searchParams.get("redirect"), "/dashboard/studio");
+    });
+
     it("should permit unauthenticated access to /login", () => {
       const req = createMockRequest("/login");
       const res = proxy(req);

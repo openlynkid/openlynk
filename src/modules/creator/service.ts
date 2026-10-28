@@ -19,7 +19,9 @@ import { invalidateStorefront } from "@/lib/storefront-cache";
 import {
   isSafeColor,
   resolveTheme,
+  resolveTileLayout,
   type CreatorLinkType,
+  type LinkLayout,
   type PublicLink,
   type PublicProduct,
   type PublicProfile,
@@ -76,6 +78,14 @@ export interface LinkInput {
   description?: string | null;
   icon?: string | null;
   thumbnailUrl?: string | null;
+  layout?: LinkLayout;
+}
+
+/** One tile as the studio sends it: its identity, footprint and visibility. */
+export interface StudioLayoutItem {
+  id: string;
+  layout: LinkLayout;
+  isActive?: boolean;
 }
 
 /** Fields a creator may set on a link, already validated and normalised. */
@@ -86,13 +96,20 @@ type LinkValues = {
   description: string | null;
   icon: string | null;
   thumbnailUrl: string | null;
+  layout: LinkLayout;
 };
 
-const LINK_TYPES: CreatorLinkType[] = ["link", "header", "divider"];
+const LINK_TYPES: CreatorLinkType[] = ["link", "header", "divider", "text", "image"];
+
+/** Kinds that carry a destination the visitor clicks through to. */
+const LINKED_TYPES: CreatorLinkType[] = ["link", "image"];
 
 /**
- * Validates a link payload. A `link` needs a safe outbound URL; `header` and `divider`
- * are pure presentation, so a URL on them is dropped rather than rejected.
+ * Validates a link payload. A `link` needs a safe outbound URL; `header`, `divider` and
+ * `text` are pure presentation, so a URL on them is dropped rather than rejected.
+ *
+ * `image` also requires a URL, but there it is the picture itself rather than a
+ * destination, so it is validated with the same safe-URL rule and rendered as media.
  */
 export function validateLinkInput(input: LinkInput): LinkValues {
   const type: CreatorLinkType = input.type ?? "link";
@@ -101,7 +118,9 @@ export function validateLinkInput(input: LinkInput): LinkValues {
   }
 
   const title = (input.title ?? "").trim();
-  if (type !== "divider" && title.length === 0) {
+  // A divider is a rule with no label; every other kind needs at least a title, and an
+  // image needs a URL below. A text tile is allowed to be only a body with no heading.
+  if (type !== "divider" && type !== "text" && title.length === 0) {
     throw new CreatorValidationError("A title is required.");
   }
   if (title.length > MAX_LINK_TITLE) {
@@ -109,10 +128,12 @@ export function validateLinkInput(input: LinkInput): LinkValues {
   }
 
   let url: string | null = null;
-  if (type === "link") {
+  if (LINKED_TYPES.includes(type)) {
     const raw = (input.url ?? "").trim();
     if (raw.length === 0) {
-      throw new CreatorValidationError("A URL is required for a link.");
+      throw new CreatorValidationError(
+        type === "image" ? "An image needs a URL." : "A URL is required for a link."
+      );
     }
     const normalized = normalizeOutboundUrl(raw);
     if (!isSafeOutboundUrl(normalized)) {
@@ -122,13 +143,25 @@ export function validateLinkInput(input: LinkInput): LinkValues {
   }
 
   const description = input.description?.trim() ? input.description.trim().slice(0, 300) : null;
+  if (type === "text" && !title && !description) {
+    throw new CreatorValidationError("A text tile needs some text.");
+  }
+
   const icon = input.icon?.trim() ? input.icon.trim().slice(0, 40) : null;
   const thumbnailUrl =
     input.thumbnailUrl && isSafeOutboundUrl(input.thumbnailUrl.trim())
       ? input.thumbnailUrl.trim()
       : null;
 
-  return { type, title: title || "Divider", url, description, icon, thumbnailUrl };
+  return {
+    type,
+    title: title || (type === "divider" ? "Divider" : ""),
+    url,
+    description,
+    icon,
+    thumbnailUrl,
+    layout: resolveTileLayout(input.layout),
+  };
 }
 
 /**
@@ -480,6 +513,12 @@ export class CreatorService {
       patch.isActive = Boolean(input.isActive);
     }
 
+    // Layout is orthogonal to content, so it is applied on its own path: resizing a tile
+    // must not require the payload to carry a valid title and URL again.
+    if (input.layout !== undefined) {
+      patch.layout = resolveTileLayout(input.layout);
+    }
+
     const [updated] = await this.dbInstance
       .update(creatorLink)
       .set(patch)
@@ -537,6 +576,54 @@ export class CreatorService {
     return this.listLinks(profile.id);
   }
 
+  /**
+   * Saves the whole bento layout in one transaction: the tile order, each tile's
+   * footprint, and which tiles are visible.
+   *
+   * The studio edits the page as a single document — a reorder plus a resize plus a hide
+   * is one user gesture — so they are one write. Saving them separately would let a
+   * dropped request leave the page in a half-arranged state the creator never chose.
+   *
+   * Ids that do not belong to the caller are ignored, matching `reorderLinks`: a stale
+   * client that still holds a deleted tile id rearranges the rest instead of failing.
+   * Tiles the caller omitted keep their relative order after the listed ones, so a
+   * partial payload can never silently drop a tile from the page.
+   */
+  async saveStudioLayout(userId: string, items: StudioLayoutItem[]) {
+    const profile = await this.ensureProfile(userId);
+    const links = await this.listLinks(profile.id);
+    const known = new Map(links.map((link) => [link.id, link]));
+
+    // Later duplicates win, so a malformed payload with the same id twice still produces
+    // one row per tile rather than a nondeterministic position.
+    const byId = new Map<string, StudioLayoutItem>();
+    for (const item of items) {
+      if (known.has(item.id)) byId.set(item.id, item);
+    }
+
+    const ranked = [...byId.keys()];
+    const rest = links.filter((link) => !byId.has(link.id)).map((link) => link.id);
+    const finalOrder = [...ranked, ...rest];
+
+    await this.dbInstance.transaction(async (tx) => {
+      for (const [index, id] of finalOrder.entries()) {
+        const item = byId.get(id);
+        const patch: Record<string, unknown> = { position: index, updatedAt: new Date() };
+        if (item) {
+          patch.layout = resolveTileLayout(item.layout);
+          if (item.isActive !== undefined) patch.isActive = Boolean(item.isActive);
+        }
+        await tx
+          .update(creatorLink)
+          .set(patch)
+          .where(and(eq(creatorLink.id, id), eq(creatorLink.profileId, profile.id)));
+      }
+    });
+
+    invalidateStorefront(profile.username);
+    return this.listLinks(profile.id);
+  }
+
   /** Increments the denormalised click counter for a public link click. */
   async recordLinkClick(linkId: string) {
     await this.dbInstance
@@ -577,6 +664,7 @@ export class CreatorService {
       description: link.description,
       icon: link.icon,
       thumbnailUrl: link.thumbnailUrl,
+      layout: resolveTileLayout(link.layout),
     }));
 
     const publicProducts: PublicProduct[] = products.map((item) => ({

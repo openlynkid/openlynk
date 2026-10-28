@@ -75,6 +75,14 @@ const REGIONS: DataRegion[] = [
     error: /Could not load your account/,
     retry: /refetch\(\)/,
   },
+  {
+    name: "Bento Studio: page canvas",
+    file: "src/app/dashboard/studio/studio-client.tsx",
+    empty: { message: /Your page has no tiles yet/, action: /Add your first tile/ },
+    loading: /isLoading \? \([\s\S]{0,600}?<Skeleton/,
+    error: /Could not load your studio/,
+    retry: /void load\(\)/,
+  },
 ];
 
 /** The loading branch must be a layout-shaped Skeleton, never a lone spinner. */
