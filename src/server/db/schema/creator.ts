@@ -25,6 +25,19 @@ export interface ProfileTheme {
   fontFamily?: "sans" | "serif" | "mono";
 }
 
+/**
+ * How much of the bento grid a block occupies. Both fields are optional so a row
+ * written before the studio existed (`{}`) still renders: `resolveTileLayout` supplies
+ * the default, which is a full-width single row — the plain stacked list the page
+ * showed before the studio, so no existing page changes shape on deploy.
+ */
+export interface TileLayout {
+  /** Column span on the grid, 1 to `BENTO_GRID_COLUMNS`. */
+  w?: number;
+  /** Row span, 1 to `BENTO_MAX_ROWS`. */
+  h?: number;
+}
+
 /** A creator's public page: the link-in-bio surface plus its storefront settings. */
 export const creatorProfile = pgTable(
   "creator_profile",
@@ -71,13 +84,19 @@ export const creatorLink = pgTable(
     profileId: text("profile_id")
       .notNull()
       .references(() => creatorProfile.id, { onDelete: "cascade" }),
-    type: text("type").notNull().default("link"), // 'link' | 'header' | 'divider'
+    type: text("type").notNull().default("link"), // 'link' | 'header' | 'divider' | 'text' | 'image'
     title: text("title").notNull(),
     url: text("url"),
     description: text("description"),
     /** Lucide icon name, resolved by the renderer's allow-list. */
     icon: text("icon"),
+    /** Tile image for an `image` block; also the small thumbnail on a `link` block. */
     thumbnailUrl: text("thumbnail_url"),
+    /**
+     * Bento grid footprint. Stored per block rather than derived from the type, so a
+     * creator can make one link a hero and the next a small square.
+     */
+    layout: jsonb("layout").$type<TileLayout>().notNull().default({}),
     /** Ascending render order within a profile. */
     position: integer("position").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),

@@ -429,6 +429,93 @@ an old one to hide a change.
   commit. `/deploys/<id>/log` does not (404 without a token), which is why the failing
   *step* has to be inferred from `plugin_state` rather than read directly.
 
+### D-17: Production git builds are credit-skipped; publish a preview build instead
+
+The root cause of every failed production deploy is account-level, not code: every
+git-triggered **production** deploy returns `state=error`, `skipped=true`,
+`error_message="Skipped due to account credit usage exceeded"`. It reproduces on every
+production build and cannot be fixed from the repo. The account (`openlynkid`,
+`credit-free`, 300 included credits) reports `capabilities.credits={included:300,used:0}`
+and `usages_exceeded=[]`, so the skip is not visible through the API — only through the
+deploy's own `error_message`. Owner-side action (top-up/upgrade) is required to unblock
+plain git production builds.
+
+**The working deploy path, verified end to end.** `context=deploy-preview` builds are
+*not* credit-skipped. So:
+
+1. `POST /sites/{site_id}/builds?draft=true` builds the current `main` in the
+   deploy-preview context (returns a `deploy_id`; ~60s, `plugin_state=success`).
+2. `POST /sites/{site_id}/deploys/{deploy_id}/restore` publishes that build to
+   production (`published_at` set, `database_branch_id` flips `main` → `production`).
+
+This produced the site's first-ever `published_deploy`. It is a workaround, not a fix:
+new commits still need the two calls until the account is unblocked.
+
+**Two more blockers found and cleared in the same pass.**
+
+- **The site returned 401, not 404, when "empty".** `sso_login=true` (account
+  `account_sso_login=true`) put every response behind a Netlify Edge Access login
+  redirect to `app.netlify.com/edge-access`. `PATCH /sites/{site_id}` with
+  `{"sso_login": false}` clears it; the public URL then serves normally. A 401 with a
+  `Login Redirect` body is a *protection* setting, never a missing deploy.
+- **Env vars must be set as non-secret on the Free plan.** `POST
+  /accounts/{account_id}/env?site_id=...` rejects `scopes` with HTTP 403 ("Upgrade your
+  Netlify account to set specific scopes") and rejects `is_secret:true` with HTTP 422
+  ("Secrets are not allowed to run in 'post_processing' scopes"). Omitting both succeeds
+  (HTTP 201) and defaults every value to all four scopes, `all` context.
+
+**Verification that matters.** A `ready` deploy is not proof the app works (see D-16).
+Prove it against the live URL: `GET /api/auth/ok` → `{"ok":true}` (DB reachable; it 500s
+when the DB is not wired), `POST /api/auth/sign-up/email` writes a user, and
+`POST /api/billing/cron/sync-expired` with the `CRON_SECRET` bearer returns
+`{"success":true,...}` (fails closed with 401 without it). `robots.txt`/`sitemap.xml`
+must show `https://openlynk.netlify.app`, not `http://localhost:3000` — the latter means
+the build ran before `NEXT_PUBLIC_APP_URL` was set.
+
+**Not fixed here: real Midtrans credentials.** No live Midtrans key exists anywhere in
+the repo or environment, so `MIDTRANS_SERVER_KEY` / `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`
+are sandbox placeholders. Checkout and the webhook will not settle a real payment until
+the owner replaces them with a matching sandbox pair (both must match or every webhook
+test fails with `WebhookValidationError: Invalid signature`).
+
+### D-18: The bento studio stores a footprint per tile, and the renderer's class map must stay literal
+
+The studio is a grid builder, not a second content model: a tile *is* a `creator_link`
+row, and arranging it adds one thing — a `layout` jsonb column
+(`{w, h}`, default `'{}'`) on `creator_link`. No new table, so every existing row keeps
+working: `{}` resolves through `resolveTileLayout` to a full-width bar, which is exactly
+how the page rendered before the studio existed.
+
+**The resolver is the only place a bad value is stopped.** `resolveTileLayout` clamps
+`w` to `BENTO_GRID_COLUMNS` (4) and `h` to `BENTO_MAX_ROWS` (3), rounds fractions, and
+falls back to the default when a span is missing or not a number. It is used on the
+write path (`createLink`, `updateLink`, `saveStudioLayout`) *and* on the read path
+(`getPublicProfile`), so a row edited directly in the database still renders.
+
+**Tailwind will silently eat a computed span class.** `col-span-${w}` typechecks, lints
+and builds, then every tile collapses to one column in production because the class never
+appears in the source for Tailwind to see. `src/components/storefront/bento.ts` therefore
+holds `COL_SPAN` / `ROW_SPAN` as static literal maps, and
+`tests/bento-layout.test.ts` asserts each literal is present and that no interpolated
+form exists. Keep it a map; do not "simplify" it into a template string.
+
+**Saving is one whole-arrangement write, not a per-tile PATCH.** `saveStudioLayout`
+applies order + footprint + visibility in one transaction, because a half-applied drag is
+a page the creator never chose. Ids the caller does not own match no row (the ownership
+check is in the `WHERE`, the same pattern as `reorderLinks`), and tiles omitted from the
+payload keep their relative order after the listed ones, so a partial payload cannot drop
+a tile. It calls `invalidateStorefront` — a resize changes the cached public page.
+
+**Ordering is the `position` column, so the studio and the Links page share one order.**
+There is no separate bento ordering; rearranging in either surface moves the same rows.
+
+**Verification that matters.** No DOM test runner is installed (no jsdom, no
+testing-library), so the builder's interaction is verified by hand against a real
+database, not in CI. The unit tests cover the pure logic (resolver, presets, validation,
+the class map). Before shipping a change here, run the studio in a browser: select a
+tile, apply a size preset, Save, and confirm both the `creator_link.layout` values and
+the rendered `col-span-*` / `row-span-*` classes on `/u/<handle>` changed.
+
 ## Technical notes that are easy to forget
 
 - **`pnpm test:integration` reads `INTEGRATION_TEST_DATABASE_URL`, not `DATABASE_URL`.**

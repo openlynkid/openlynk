@@ -6,43 +6,39 @@ The office's working state. `coordinator` owns this file; under autopilot,
 
 Legend: `[ ]` open · `[~]` in progress · `[x]` done. Tag the owning mode in brackets.
 
-## Serah-terima: lanjutkan deploy Netlify (percakapan baru)
+## Serah-terima: lanjutkan deploy Netlify (percakapan baru) — SELESAI
 
-Owner sudah mendaftarkan secret `NETLIFY_AUTH_TOKEN` (Settings → Secrets). Secret hanya
-sampai ke percakapan yang **dimulai setelah** disimpan, jadi percakapan yang membuat catatan
-ini tidak melihatnya — mulai percakapan baru, lalu jalankan langkah berikut.
+Serah-terima ini sudah dijalankan. Ringkasan ada di D-17 (`MEMORY.md`); hasilnya:
 
-1. Pastikan token terlihat: `curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" https://api.netlify.com/api/v1/user` → harus `200` (bukan `401`).
-2. Baca log build produksi yang gagal — ini yang belum pernah terbaca:
-   `curl -s -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" https://api.netlify.com/api/v1/deploys/<id>/log`
-   Mulai dari deploy produksi terbaru (daftar: `/api/v1/sites/f254fc03-bee3-4bd2-8e13-573e57aa5add/deploys`).
-   Cari penyebab `skipped: true` / `plugin_state: none`: build dihentikan ("Stop builds"),
-   build minutes habis, atau production branch salah. Ketiganya setting Netlify, bukan kode.
-3. Isi environment variables di site (`POST /api/v1/accounts/<slug>/env?site_id=<id>`):
-   `BETTER_AUTH_SECRET` (≥32), `BETTER_AUTH_URL` dan `NEXT_PUBLIC_APP_URL`
-   = `https://openlynk.netlify.app`, `CRON_SECRET` (≥32), `MIDTRANS_SERVER_KEY`,
-   `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION` +
-   `NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION` (sama). **`DATABASE_URL` tidak perlu** — Netlify
-   Database menyediakan `NETLIFY_DB_URL`.
-4. Trigger deploy produksi (`POST /api/v1/sites/<id>/builds` atau tombol "Clear cache and
-   deploy site"), lalu verifikasi `https://openlynk.netlify.app` mengembalikan 200, bukan 404.
-5. **Jangan tempel token ke chat.** Pakai dari environment variable saja.
+- `https://openlynk.netlify.app` **hidup (HTTP 200)** dan sudah publish
+  (`published_deploy` terisi untuk pertama kali, `database_branch_id=production`).
+- Akar masalah build produksi yang ter-skip ditemukan: **kredit akun habis**
+  (`error_message="Skipped due to account credit usage exceeded"`), bukan kode/config.
+  Deploy produksi dari git tetap ter-skip sampai owner top-up/upgrade.
+- Jalan deploy yang bekerja: build draft (`POST /sites/<id>/builds?draft=true`) lalu
+  publish (`POST /sites/<id>/deploys/<id>/restore`).
+- 8 env vars sudah diisi di site (non-secret; Free plan menolak `scopes` dan
+  `is_secret`). `DATABASE_URL` memang tidak perlu — Netlify Database menyediakan
+  `NETLIFY_DB_URL`.
+- Dua blocker lain ikut dibersihkan: proteksi SSO situs (`sso_login` → 401) dan build
+  lama yang memakai `http://localhost:3000`.
+- **Sisa untuk owner:** ganti placeholder sandbox `MIDTRANS_SERVER_KEY` /
+  `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` dengan kunci asli (berpasangan), dan selesaikan
+  blokir kredit akun agar build produksi dari git jalan sendiri.
 
 Jangan ulangi eksperimen isolasi `exp-*` — kesimpulannya sudah final di D-16 dan tidak perlu
 dibuktikan lagi.
 
-- `[~]` **[devops]** Deploy OpenLynk to Netlify. Two repo-side defects fixed and merged
-  (PR #2): no `publish` directory was configured, and `@netlify/database` was absent so
-  the database was never provisioned. Proof: deploy previews went from `error` to `ready`
-  (see D-16 for the controlled differential). **Still blocked on the production context**:
-  both production deploys from `main` (03:23, 04:46, 04:58) came back `skipped: true` with
-  `plugin_state: none` in ~0.1 s, i.e. no build was attempted, whereas the earlier direct
-  commit `a801715` *did* attempt one. No production deploy has ever published
-  (`published_deploy: null`, 0 of 15 deploys). The remaining blocker is therefore a
-  Netlify-side production build setting, which needs the site owner's Netlify access;
-  deploy logs and env vars are unreadable from here (`api.netlify.com` returns 401,
-  `NETLIFY_AUTH_TOKEN` unset). Worth checking in the Netlify UI: whether builds are
-  stopped, build minutes/billing, and the production branch.
+- `[x]` **[devops]** Deploy OpenLynk to Netlify. Situs produksi **live** dan terverifikasi
+  end to end, bukan cuma `ready`: `GET /api/auth/ok` → `{"ok":true}` (DB terjangkau),
+  sign-up menulis user ke DB, sign-in membacanya, dan cron `sync-expired` mengembalikan
+  `{"success":true}` dengan `CRON_SECRET` serta 401 tanpa secret (fail closed). Empat
+  defect ditutup: (1) `publish` + `@netlify/database` (PR #2, D-16), (2) proteksi SSO
+  situs yang membuat URL publik mengembalikan 401, (3) env vars kosong, (4) build yang
+  masih memakai `http://localhost:3000`. **Blokir yang tersisa bersifat akun, bukan kode:**
+  build produksi dari git masih `skipped: true` dengan "Skipped due to account credit usage
+  exceeded", jadi sampai owner top-up/upgrade rilis baru harus lewat jalur draft+restore
+  (D-17). Lihat D-17 untuk perintah lengkapnya.
 
 - `[x]` **[devops + docs]** Register the nightly autopilot automation (Step 9 of the
   pipeline in D-6). Registered as `aa313395-f5e0-40f2-be98-960ada83908e` on the three
@@ -57,6 +53,16 @@ dibuktikan lagi.
   the OpenHands GitHub App — see D-13.
 
 ## Backlog
+
+- `[x]` **[frontend + backend + qa]** Bento Studio: a grid builder where a creator
+  arranges their page as tiles. One `layout` jsonb column on `creator_link` (default
+  `'{}'`) rather than a new table, so every existing row still renders full-width through
+  `resolveTileLayout`. Delivered: `/dashboard/studio` (canvas + inspector, drag and
+  keyboard reorder, size presets, show/hide), `GET`/`PUT /api/creator/studio`,
+  `creatorService.saveStudioLayout` (order + footprint + visibility in one transaction,
+  invalidates the storefront cache), and a bento renderer for the public page. Guarded by
+  `tests/bento-layout.test.ts` — including a literal-class assertion, because
+  `col-span-${w}` would build and then collapse every tile in production. See D-18.
 
 - `[x]` **[backend + qa]** Add `src/app/sitemap.ts` so the `Sitemap:` line in `robots.txt`
   resolves. Scope decided: only `/` is public (`/login` and `/register` are `Disallow`ed

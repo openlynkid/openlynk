@@ -126,12 +126,82 @@ export function resolveTheme(theme: ThemeInput | null | undefined): ResolvedThem
   };
 }
 
-export type CreatorLinkType = "link" | "header" | "divider";
+export type CreatorLinkType = "link" | "header" | "divider" | "text" | "image";
 export type ProductDeliveryType = "file" | "link" | "code";
 export type ProductType = "digital" | "ebook" | "course" | "membership";
 
 export const PRODUCT_TYPES: ProductType[] = ["digital", "ebook", "course", "membership"];
 export const DELIVERY_TYPES: ProductDeliveryType[] = ["file", "link", "code"];
+
+/**
+ * The bento grid is 4 columns wide on every viewport, with the tile's own footprint
+ * deciding how many it takes. A fixed 4 keeps the stored layout device-independent:
+ * a 2-wide tile is half a row on a phone and half a row on a desktop, so the studio
+ * preview and the public page cannot disagree about the shape.
+ */
+export const BENTO_GRID_COLUMNS = 4;
+export const BENTO_MAX_ROWS = 3;
+
+/** A tile's footprint on the grid. `w` is a column span, `h` a row span. */
+export interface LinkLayout {
+  w: number;
+  h: number;
+}
+
+/**
+ * The shapes the studio offers, as presets rather than free-form spans.
+ *
+ * A creator picks from four named footprints instead of dragging a resize handle: every
+ * reachable layout is then one the renderer has a class for (see `src/components/storefront/bento.ts`), and a
+ * creator cannot build a 1x3 sliver that strands the auto-flow.
+ */
+export interface TileSizePreset {
+  id: string;
+  name: string;
+  w: number;
+  h: number;
+}
+
+export const TILE_SIZE_PRESETS: TileSizePreset[] = [
+  { id: "wide", name: "Wide", w: 4, h: 1 },
+  { id: "half", name: "Half", w: 2, h: 1 },
+  { id: "square", name: "Square", w: 2, h: 2 },
+  { id: "feature", name: "Feature", w: 4, h: 2 },
+];
+
+export const DEFAULT_TILE_LAYOUT: LinkLayout = { w: 4, h: 1 };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+/**
+ * Resolves a stored layout to a renderable one.
+ *
+ * Every value is clamped rather than rejected, so a row written by an older build (or
+ * hand-edited) still renders as *something* sensible instead of breaking the grid. The
+ * parameter is loose (`Partial`) because the stored column and the API payload are both
+ * allowed to omit a span; the return is always complete.
+ */
+export function resolveTileLayout(
+  layout: Partial<LinkLayout> | null | undefined
+): LinkLayout {
+  if (!layout || typeof layout.w !== "number" || typeof layout.h !== "number") {
+    return DEFAULT_TILE_LAYOUT;
+  }
+  return {
+    w: clamp(Math.round(layout.w), 1, BENTO_GRID_COLUMNS),
+    h: clamp(Math.round(layout.h), 1, BENTO_MAX_ROWS),
+  };
+}
+
+/** The preset matching a footprint, for the studio to show as selected. */
+export function tileSizePresetFor(layout: LinkLayout): TileSizePreset | null {
+  return (
+    TILE_SIZE_PRESETS.find(
+      (preset) => preset.w === layout.w && preset.h === layout.h
+    ) ?? null
+  );
+}
 
 export interface PublicLink {
   id: string;
@@ -141,6 +211,7 @@ export interface PublicLink {
   description: string | null;
   icon: string | null;
   thumbnailUrl: string | null;
+  layout: LinkLayout;
 }
 
 export interface PublicProduct {
